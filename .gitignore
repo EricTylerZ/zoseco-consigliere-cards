@@ -3,4 +3,9 @@
 /myenv
 
 *.pdf
+*.txt
 *.csv
+
+*.pdf#
+*.txt#
+*.csv#
