@@ -112,7 +112,7 @@ def draw_card(c, x, y, card_id, qr_code_url):
         c.drawString(text_x, current_y - 7, line)
         current_y -= 9
     
-    # Bottom section
+    # Bottom section with extra space
     bottom_y = y + margin
     qr_size = 1 * inch
     qr_x = x + CARD_WIDTH - margin - qr_size
@@ -121,9 +121,9 @@ def draw_card(c, x, y, card_id, qr_code_url):
     c.drawImage(qr_file, qr_x, qr_y, qr_size, qr_size)
     os.remove(qr_file)
     
-    # Contact and address
+    # Contact and address with extra line break (pushed down)
     contact_x = text_x
-    contact_y = bottom_y + qr_size - 10
+    contact_y = bottom_y + qr_size - 30  # Adjusted to push down by extra line break
     c.setFont(FONT_NAME, 7)
     c.drawString(contact_x, contact_y, contact)
     c.drawString(contact_x, contact_y - 10, address)
@@ -131,8 +131,32 @@ def draw_card(c, x, y, card_id, qr_code_url):
 def create_pdf():
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     pdf_filename = f"Eric_Zosso_Business_Cards_{timestamp}.pdf"
-    csv_filename = f"card_tracker_{timestamp}.csv"
+    csv_filename = "Zoseco_Business_Card_Tracker.csv"
     
+    # Determine starting card number from existing CSV
+    if os.path.isfile(csv_filename):
+        with open(csv_filename, 'r') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader)  # Skip header
+            card_numbers = [int(row[1]) for row in reader if row]
+            start_card_number = max(card_numbers) + 1 if card_numbers else 1
+    else:
+        start_card_number = 1
+    
+    # Generate card IDs
+    card_ids = range(start_card_number, start_card_number + total_cards)
+    
+    # Write to CSV
+    file_exists = os.path.isfile(csv_filename)
+    with open(csv_filename, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        if not file_exists:
+            writer.writerow(["Name", "Card Number", "QR Code URL"])
+        for card_id in card_ids:
+            qr_code_url = f"{base_url}{card_id:03d}"
+            writer.writerow(["Eric Zosso", card_id, qr_code_url])
+    
+    # Generate PDF
     c = canvas.Canvas(pdf_filename, pagesize=letter)
     c.setTitle("Eric Zosso - Tech Consigliere Business Cards")
     c.setAuthor("Eric Zosso")
@@ -142,30 +166,19 @@ def create_pdf():
     y_positions = [y_start - i * (CARD_HEIGHT + spacing) for i in range(rows)]
     x_positions = [left_margin + j * CARD_WIDTH for j in range(cols)]  # No spacing
     
-    with open(csv_filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Card Number", "QR Code URL"])
-        
-        for page in range((total_cards + cols * rows - 1) // (cols * rows)):
-            for i in range(rows):
-                for j in range(cols):
-                    card_id = page * cols * rows + i * cols + j + 1
-                    if card_id > total_cards:
-                        break
-                    qr_code_url = f"{base_url}{card_id:03d}"
-                    writer.writerow([card_id, qr_code_url])
-                    x = x_positions[j]
-                    y = y_positions[i]
-                    draw_card(c, x, y, card_id, qr_code_url)
-            if page < (total_cards + cols * rows - 1) // (cols * rows) - 1:
-                c.showPage()
+    for i, card_id in enumerate(card_ids):
+        row = i // cols
+        col = i % cols
+        if row >= rows:
+            break
+        x = x_positions[col]
+        y = y_positions[row]
+        qr_code_url = f"{base_url}{card_id:03d}"
+        draw_card(c, x, y, card_id, qr_code_url)
+    
     c.save()
     print(f"PDF generated: {pdf_filename}")
-    print(f"CSV tracker generated: {csv_filename}")
-    # Display CSV contents (simplified view)
-    with open(csv_filename, 'r') as csvfile:
-        print("\nCSV Contents:")
-        print(csvfile.read())
+    print(f"Added cards {start_card_number} to {start_card_number + total_cards - 1} to {csv_filename}")
 
 if __name__ == "__main__":
     create_pdf()
