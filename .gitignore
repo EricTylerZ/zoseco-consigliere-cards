@@ -1,0 +1,6 @@
+.env
+/venv
+/myenv
+
+*.pdf
+*.csv
